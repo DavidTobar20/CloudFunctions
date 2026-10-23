@@ -91,12 +91,27 @@ exports.sendFollowNotification = onDocumentCreated(
         const userData = userDoc.data();
         const userToken = userData.fcmtoken;
 
-        // 2. Nombre de quien lo empezo a seguir
+        // 2. Datos de quien lo empezo a seguir
         const followerDoc = await db.collection("users").doc(followerId).get();
         const followerData = followerDoc.data();
         const followerName = followerData.nombre;
 
-        // 3. Armar y enviar el mensaje
+        // 3. Guardar la notificacion para que salga en la pantalla de Notificaciones
+        await db.collection("notificaciones").add({
+            destinatarioId: userId,
+            emisorId: followerId,
+            tipo: "FOLLOW",
+            emisor: {
+                id: followerId,
+                nombre: followerData.nombre || "",
+                nombre_usuario: followerData.nombre_usuario || "",
+                foto_url: followerData.foto_url || "",
+                color_perfil: followerData.color_perfil || "",
+            },
+            fechaCreacion: admin.firestore.Timestamp.now(),
+        });
+
+        // 4. Armar y enviar el mensaje push
         if (userToken) {
             const message = {
                 token: userToken,
@@ -116,26 +131,24 @@ exports.sendFollowNotification = onDocumentCreated(
             logger.log("El usuario", userId, "no tiene FCM token");
         }
     }
-
-    
 );
 
 exports.sendLikeNotification = onDocumentCreated(
     "reviews/{reviewId}/likes/{userId}",
     async (event) => {
-        // reviewId = la reseña que recibió el like
+        // reviewId = la reseña que recibio el like
         // userId = quien dio el like
         const reviewId = event.params.reviewId;
         const userId = event.params.userId;
 
-        // 1. Buscar la reseña para saber quién es el autor (a él le llega la notificación)
+        // 1. Buscar la reseña para saber quien es el autor (a el le llega la notificacion)
         const reviewDoc = await db.collection("reviews").doc(reviewId).get();
         const reviewData = reviewDoc.data();
         const autorId = reviewData.autor_id;
 
-        // Si el autor se dio like a sí mismo, no se notifica
+        // Si el autor se dio like a si mismo, no se notifica
         if (autorId === userId) {
-            logger.log("El autor se dio like a sí mismo, no se envía notificación.");
+            logger.log("El autor se dio like a si mismo, no se envia notificacion.");
             return;
         }
 
@@ -144,12 +157,30 @@ exports.sendLikeNotification = onDocumentCreated(
         const autorData = autorDoc.data();
         const autorToken = autorData.fcmtoken;
 
-        // 3. Nombre de quien dio el like
+        // 3. Datos de quien dio el like
         const likerDoc = await db.collection("users").doc(userId).get();
         const likerData = likerDoc.data();
         const likerName = likerData.nombre;
 
-        // 4. Armar y enviar el mensaje
+        // 4. Guardar la notificacion para que salga en la pantalla de Notificaciones
+        await db.collection("notificaciones").add({
+            destinatarioId: autorId,
+            emisorId: userId,
+            tipo: "LIKE",
+            resenaId: reviewId,
+            resenaDe: reviewData.resenado ? reviewData.resenado.nombre : "",
+            materia: reviewData.materia || "",
+            emisor: {
+                id: userId,
+                nombre: likerData.nombre || "",
+                nombre_usuario: likerData.nombre_usuario || "",
+                foto_url: likerData.foto_url || "",
+                color_perfil: likerData.color_perfil || "",
+            },
+            fechaCreacion: admin.firestore.Timestamp.now(),
+        });
+
+        // 5. Armar y enviar el mensaje push
         if (autorToken) {
             const message = {
                 token: autorToken,
