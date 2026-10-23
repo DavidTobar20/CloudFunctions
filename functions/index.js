@@ -77,3 +77,43 @@ exports.updateUserInfoInReviews = onDocumentUpdated(
         logger.log("Reviews actualizadas exitosamente para el usuario:", userId);
     }
 );
+
+exports.sendFollowNotification = onDocumentCreated(
+    "users/{userId}/followers/{followerId}",
+    async (event) => {
+        // userId = a quien siguieron (a el le llega la notificacion)
+        // followerId = quien empezo a seguir
+        const userId = event.params.userId;
+        const followerId = event.params.followerId;
+
+        // 1. Token FCM del usuario que recibe el nuevo seguidor
+        const userDoc = await db.collection("users").doc(userId).get();
+        const userData = userDoc.data();
+        const userToken = userData.fcmtoken;
+
+        // 2. Nombre de quien lo empezo a seguir
+        const followerDoc = await db.collection("users").doc(followerId).get();
+        const followerData = followerDoc.data();
+        const followerName = followerData.nombre;
+
+        // 3. Armar y enviar el mensaje
+        if (userToken) {
+            const message = {
+                token: userToken,
+                notification: {
+                    title: "Nuevo seguidor",
+                    body: `${followerName} ha comenzado a seguirte`,
+                },
+            };
+
+            try {
+                await admin.messaging().send(message);
+                logger.log("Notificacion enviada de", followerId, "a", userId);
+            } catch (error) {
+                logger.error("Error al enviar la notificacion:", error);
+            }
+        } else {
+            logger.log("El usuario", userId, "no tiene FCM token");
+        }
+    }
+);
