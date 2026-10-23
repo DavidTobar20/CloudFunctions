@@ -116,4 +116,57 @@ exports.sendFollowNotification = onDocumentCreated(
             logger.log("El usuario", userId, "no tiene FCM token");
         }
     }
+
+    
+);
+
+exports.sendLikeNotification = onDocumentCreated(
+    "reviews/{reviewId}/likes/{userId}",
+    async (event) => {
+        // reviewId = la reseña que recibió el like
+        // userId = quien dio el like
+        const reviewId = event.params.reviewId;
+        const userId = event.params.userId;
+
+        // 1. Buscar la reseña para saber quién es el autor (a él le llega la notificación)
+        const reviewDoc = await db.collection("reviews").doc(reviewId).get();
+        const reviewData = reviewDoc.data();
+        const autorId = reviewData.autor_id;
+
+        // Si el autor se dio like a sí mismo, no se notifica
+        if (autorId === userId) {
+            logger.log("El autor se dio like a sí mismo, no se envía notificación.");
+            return;
+        }
+
+        // 2. Token FCM del autor de la reseña
+        const autorDoc = await db.collection("users").doc(autorId).get();
+        const autorData = autorDoc.data();
+        const autorToken = autorData.fcmtoken;
+
+        // 3. Nombre de quien dio el like
+        const likerDoc = await db.collection("users").doc(userId).get();
+        const likerData = likerDoc.data();
+        const likerName = likerData.nombre;
+
+        // 4. Armar y enviar el mensaje
+        if (autorToken) {
+            const message = {
+                token: autorToken,
+                notification: {
+                    title: "Nuevo like",
+                    body: `A ${likerName} le gustó tu reseña de ${reviewData.materia}`,
+                },
+            };
+
+            try {
+                await admin.messaging().send(message);
+                logger.log("Notificacion de like enviada de", userId, "a", autorId);
+            } catch (error) {
+                logger.error("Error al enviar la notificacion de like:", error);
+            }
+        } else {
+            logger.log("El usuario", autorId, "no tiene FCM token");
+        }
+    }
 );
