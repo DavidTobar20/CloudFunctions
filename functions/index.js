@@ -89,7 +89,7 @@ exports.sendFollowNotification = onDocumentCreated(
         // 1. Token FCM del usuario que recibe el nuevo seguidor
         const userDoc = await db.collection("users").doc(userId).get();
         const userData = userDoc.data();
-        const userToken = userData.fcmtoken;
+        const userToken = userData.fcmToken;
 
         // 2. Datos de quien lo empezo a seguir
         const followerDoc = await db.collection("users").doc(followerId).get();
@@ -155,7 +155,7 @@ exports.sendLikeNotification = onDocumentCreated(
         // 2. Token FCM del autor de la reseña
         const autorDoc = await db.collection("users").doc(autorId).get();
         const autorData = autorDoc.data();
-        const autorToken = autorData.fcmtoken;
+        const autorToken = autorData.fcmToken;
 
         // 3. Datos de quien dio el like
         const likerDoc = await db.collection("users").doc(userId).get();
